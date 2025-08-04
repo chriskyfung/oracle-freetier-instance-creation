@@ -46,12 +46,19 @@ def send_discord_message(message):
         except requests.RequestException as e:
             print(f"Failed to send Discord message: {e}")
 
-# Set up OCI Config and Clients
-config = oci.config.from_file(OCI_CONFIG)
-iam_client = oci.identity.IdentityClient(config)
-network_client = oci.core.VirtualNetworkClient(config)
-compute_client = oci.core.ComputeClient(config)
-OCI_USER_ID = config.get('user')
+iam_client = None
+network_client = None
+compute_client = None
+OCI_USER_ID = None
+
+def init_oci_clients():
+    global iam_client, network_client, compute_client, OCI_USER_ID
+    # Set up OCI Config and Clients
+    config = oci.config.from_file(OCI_CONFIG)
+    iam_client = oci.identity.IdentityClient(config)
+    network_client = oci.core.VirtualNetworkClient(config)
+    compute_client = oci.core.ComputeClient(config)
+    OCI_USER_ID = config.get('user')
 
 IMAGE_LIST_KEYS = [
     "lifecycle_state",
@@ -227,6 +234,7 @@ def launch_instance():
             )
 
 
+
 def create_instance_details_file_and_notify(instance, shape):
     instance_details = {
         "display_name": instance.display_name,
@@ -246,6 +254,7 @@ def create_instance_details_file_and_notify(instance, shape):
 
 
 if __name__ == "__main__":
+    init_oci_clients()
     send_discord_message("🚀 OCI Instance Creation Script: Starting up! Let's create some cloud magic!")
     try:
         launch_instance()
