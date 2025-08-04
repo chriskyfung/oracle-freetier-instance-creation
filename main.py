@@ -25,7 +25,7 @@ E2_MICRO_SHAPE = "VM.Standard.E2.1.Micro"
 OCI_CONFIG = os.getenv("OCI_CONFIG", "").strip()
 OCT_FREE_AD = os.getenv("OCT_FREE_AD", "").strip()
 DISPLAY_NAME = os.getenv("DISPLAY_NAME", "").strip()
-WAIT_TIME = int(os.getenv("REQUEST_WAIT_TIME_SECS", "0").strip())
+WAIT_TIME = int(os.getenv("REQUEST_WAIT_TIME_SECS", "30").strip())
 SSH_PUNLIC_KEY_FILE = os.getenv("SSH_PUNLIC_KEY_FILE", "").strip()
 OCI_IMAGE_ID = os.getenv("OCI_IMAGE_ID", None).strip() if os.getenv("OCI_IMAGE_ID") else None
 OCI_COMPUTE_SHAPE = os.getenv("OCI_COMPUTE_SHAPE", ARM_SHAPE).strip()
@@ -178,7 +178,7 @@ def launch_instance():
         shape_config = oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=1, memory_in_gbs=1)
 
     while not instance_exist_flag:
-        time.sleep(30)
+        time.sleep(WAIT_TIME)
         try:
             launch_instance_response = compute_client.launch_instance(
                 launch_instance_details=oci.core.models.LaunchInstanceDetails(
@@ -227,6 +227,24 @@ def launch_instance():
             )
 
 
+def create_instance_details_file_and_notify(instance, shape):
+    instance_details = {
+        "display_name": instance.display_name,
+        "shape": instance.shape,
+        "id": instance.id,
+        "lifecycle_state": instance.lifecycle_state,
+        "time_created": str(instance.time_created),
+    }
+    file_name = f"instance_details_{shape.replace('.', '_')}.json"
+    with open(file_name, "w") as f:
+        json.dump(instance_details, f, indent=4)
+
+    send_discord_message(
+        f"✅ Great news! An instance with shape `{shape}` is now available."
+        f"Details saved to `{file_name}`."
+    )
+
+
 if __name__ == "__main__":
     send_discord_message("🚀 OCI Instance Creation Script: Starting up! Let's create some cloud magic!")
     try:
@@ -236,3 +254,4 @@ if __name__ == "__main__":
         error_message = f"😱 Oops! Something went wrong with the OCI Instance Creation Script:\n{str(e)}"
         send_discord_message(error_message)
         raise
+
