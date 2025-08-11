@@ -1,0 +1,1 @@
+﻿podman run -d --name oci-vm-creator -v ./oci.env:/app/oci.env:ro,z -v ./oci_config:/app/oci_config:ro,z -v ./oci_api_private_key.pem:/app/oci_api_private_key.pem:ro,z -v ./ssh_public_key.pub:/app/ssh_public_key.pub:ro,z -v ./main.py:/app/main.py:ro,z -e OCI_ENV_FILE=/app/oci.env ghcr.io/nyamort/oracle-freetier-instance-creation:latest

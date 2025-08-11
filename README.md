@@ -40,15 +40,21 @@ docker-compose up
 
 ## Usage with Podman
 
-If you prefer to use Podman, you can use the provided `run_podman.sh` script.
+If you prefer to use Podman, you can use one of the provided scripts.
+
+**For Linux/macOS:**
 
 ```bash
 ./run_podman.sh
 ```
 
-This script is a direct equivalent of the `docker-compose` command.
+**For Windows:**
 
+```powershell
+.\run_podman.ps1
+```
 
+These scripts are direct equivalents of the `docker-compose` command.
 
 ## Development
 
@@ -57,14 +63,15 @@ If you are developing the script and want to test local changes to `main.py` wit
 **For Docker:**
 
 Add the following line to the `volumes` section in your `docker-compose.yml`:
+
 ```yaml
       - ./main.py:/app/main.py:ro
 ```
 
 **For Podman:**
 
-The provided `run_podman.sh` script already includes the mount for `main.py`. If you need to remove it for production-like testing, you can delete the following part from the script:
+The provided `run_podman.sh` and `run_podman.ps1` scripts already include the mount for `main.py`. If you need to remove it for production-like testing, you can delete the following part from the script:
+
 ```bash
 -v ./main.py:/app/main.py:ro,z
 ```
-
