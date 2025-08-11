@@ -1,16 +1,12 @@
-import configparser
 import itertools
 import json
 import os
-import smtplib
 import sys
 import time
 from pathlib import Path
 from typing import Union
-import time
 
 import oci
-import paramiko
 from dotenv import load_dotenv
 import requests
 
@@ -263,4 +259,3 @@ if __name__ == "__main__":
         error_message = f"😱 Oops! Something went wrong with the OCI Instance Creation Script:\n{str(e)}"
         send_discord_message(error_message)
         raise
-
