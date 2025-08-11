@@ -1,0 +1,12 @@
+services:
+  oracle-freetier:
+    image: ghcr.io/nyamort/oracle-freetier-instance-creation:latest
+    container_name: oci-vm-creator
+    volumes:
+      - ./oci.env:/app/oci.env:ro
+      - ./oci_config:/app/oci_config:ro
+      - ./oci_api_private_key.pem:/app/oci_api_private_key.pem:ro
+      - ./ssh_public_key.pub:/app/ssh_public_key.pub:ro
+      - ./main.py:/app/main.py:ro
+    environment:
+      - OCI_ENV_FILE=/app/oci.env
