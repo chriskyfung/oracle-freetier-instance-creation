@@ -20,3 +20,14 @@ README.md
 Dockerfile
 docker-compose.yml
 
+# Local virtual environment
+oci.env
+oci_api_private_key.pem
+oci_config
+ssh_public_key.pub
+
+# Generated files
+output.txt
+test_issues.txt
+test_main.py
+instance_details_*.json
