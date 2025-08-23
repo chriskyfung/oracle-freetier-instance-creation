@@ -20,8 +20,18 @@ README.md
 Dockerfile
 docker-compose.yml
 
+.git/
+.github/
+venv/
+.dockerignore
+.gitattributes
+.git
+run_podman.ps1
+run_podman.sh
+
 # Local virtual environment
 oci.env
+oci.env.exemple
 oci_api_private_key.pem
 oci_config
 ssh_public_key.pub
