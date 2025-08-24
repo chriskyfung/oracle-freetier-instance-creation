@@ -1,6 +1,7 @@
 import itertools
 import json
 import os
+import signal
 import sys
 import time
 from pathlib import Path
@@ -180,7 +181,7 @@ def launch_instance():
     else:
         shape_config = oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=1, memory_in_gbs=1)
 
-    while not instance_exist_flag:
+    while not instance_exist_flag and not SHUTDOWN_FLAG:
         time.sleep(WAIT_TIME)
         try:
             launch_instance_response = compute_client.launch_instance(
@@ -249,13 +250,26 @@ def create_instance_details_file_and_notify(instance, shape):
     )
 
 
+SHUTDOWN_FLAG = False
+
+def signal_handler(signum, frame):
+    global SHUTDOWN_FLAG
+    SHUTDOWN_FLAG = True
+    print(f"Received signal: {signum}. Shutting down gracefully...")
+    send_discord_message("👋 OCI Instance Creation Script: Shutting down gracefully. Goodbye!")
+    sys.exit(0)
+
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
     init_oci_clients()
     send_discord_message("🚀 OCI Instance Creation Script: Starting up! Let's create some cloud magic!")
     try:
         launch_instance()
-        send_discord_message("🎉 Success! OCI Instance has been created. Time to celebrate!")
+        if not SHUTDOWN_FLAG:
+            send_discord_message("🎉 Success! OCI Instance has been created. Time to celebrate!")
     except Exception as e:
         error_message = f"😱 Oops! Something went wrong with the OCI Instance Creation Script:\n{str(e)}"
         send_discord_message(error_message)
         raise
+
