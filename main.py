@@ -100,22 +100,26 @@ def check_instance_state_and_write(compartment_id, shape, states=('RUNNING', 'PR
 
 
 def execute_oci_command(client, method, *args, **kwargs):
+    custom_error_handler = kwargs.pop('custom_error_handler', None)
     while True:
         try:
             response = getattr(client, method)(*args, **kwargs)
             data = response.data if hasattr(response, "data") else response
             return data
         except oci.exceptions.ServiceError as srv_err:
-            data = {"status": srv_err.status,
-                    "code": srv_err.code,
-                    "message": srv_err.message}
-            send_discord_message(
-                f"❗️ Error encountered while executing OCI command: {method}\n"
-                f"Status: {data['status']}, Code: {data['code']}, Message: {data['message']}"
-            )
-            if srv_err.status in [401, 403, 404]:
-                send_discord_message(f"❌ Halting script due to unrecoverable API error: {srv_err.code}")
-                sys.exit(1)
+            if custom_error_handler:
+                custom_error_handler(srv_err)
+            else:
+                data = {"status": srv_err.status,
+                        "code": srv_err.code,
+                        "message": srv_err.message}
+                send_discord_message(
+                    f"❗️ Error encountered while executing OCI command: {method}\n"
+                    f"Status: {data['status']}, Code: {data['code']}, Message: {data['message']}"
+                )
+                if srv_err.status in [401, 403, 404]:
+                    send_discord_message(f"❌ Halting script due to unrecoverable API error: {srv_err.code}")
+                    raise srv_err
             time.sleep(WAIT_TIME)
         except (oci.exceptions.ConnectTimeout, oci.exceptions.RequestException) as e:
             send_discord_message(f"⏳ Connection issue while executing {method}. Retrying... Details: {e}")
@@ -144,7 +148,7 @@ def launch_instance():
                                                "list_availability_domains",
                                                compartment_id=oci_tenancy)
     oci_ad_name = [item.name for item in availability_domains if
-                   any(item.name.endswith(oct_ad) for oct_ad in OCT_FREE_AD.split(","))]
+                   any(item.name.endswith(oct_ad) for oct_ad in OCT_FREE_AD.split(','))]
     oci_ad_names = itertools.cycle(oci_ad_name)
 
     # Step 3 - Get Subnet ID
@@ -172,7 +176,7 @@ def launch_instance():
     else:
         oci_image_id = OCI_IMAGE_ID
 
-    assign_public_ip = ASSIGN_PUBLIC_IP.lower() in [ "true", "1", "y", "yes" ]
+    assign_public_ip = ASSIGN_PUBLIC_IP.lower() in ["true", "1", "y", "yes"]
 
     boot_volume_size = max(50, int(BOOT_VOLUME_SIZE))
 
@@ -186,56 +190,63 @@ def launch_instance():
     else:
         shape_config = oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=1, memory_in_gbs=1)
 
+    def launch_error_handler(srv_err):
+        if srv_err.code == "LimitExceeded":
+            raise srv_err
+
+        data = {
+            "status": srv_err.status,
+            "code": srv_err.code,
+            "message": srv_err.message,
+        }
+        send_discord_message(
+            f"❗️ Error encountered while launching instance: {data['code']}\n"
+            f"Status: {data['status']}, Message: {data['message']}"
+        )
+
     while not instance_exist_flag and not SHUTDOWN_FLAG:
         time.sleep(WAIT_TIME)
         try:
-            launch_instance_response = compute_client.launch_instance(
-                launch_instance_details=oci.core.models.LaunchInstanceDetails(
-                    availability_domain=next(oci_ad_names),
-                    compartment_id=oci_tenancy,
-                    create_vnic_details=oci.core.models.CreateVnicDetails(
-                        assign_public_ip=assign_public_ip,
-                        assign_private_dns_record=True,
-                        display_name=DISPLAY_NAME,
-                        subnet_id=oci_subnet_id,
-                    ),
+            launch_instance_details = oci.core.models.LaunchInstanceDetails(
+                availability_domain=next(oci_ad_names),
+                compartment_id=oci_tenancy,
+                create_vnic_details=oci.core.models.CreateVnicDetails(
+                    assign_public_ip=assign_public_ip,
+                    assign_private_dns_record=True,
                     display_name=DISPLAY_NAME,
-                    shape=OCI_COMPUTE_SHAPE,
-                    availability_config=oci.core.models.LaunchInstanceAvailabilityConfigDetails(
-                        recovery_action="RESTORE_INSTANCE"
-                    ),
-                    instance_options=oci.core.models.InstanceOptions(
-                        are_legacy_imds_endpoints_disabled=False
-                    ),
-                    shape_config=shape_config,
-                    source_details=oci.core.models.InstanceSourceViaImageDetails(
-                        source_type="image",
-                        image_id=oci_image_id,
-                        boot_volume_size_in_gbs=boot_volume_size,
-                    ),
-                    metadata={
-                        "ssh_authorized_keys": ssh_public_key},
-                )
+                    subnet_id=oci_subnet_id,
+                ),
+                display_name=DISPLAY_NAME,
+                shape=OCI_COMPUTE_SHAPE,
+                availability_config=oci.core.models.LaunchInstanceAvailabilityConfigDetails(
+                    recovery_action="RESTORE_INSTANCE"
+                ),
+                instance_options=oci.core.models.InstanceOptions(
+                    are_legacy_imds_endpoints_disabled=False
+                ),
+                shape_config=shape_config,
+                source_details=oci.core.models.InstanceSourceViaImageDetails(
+                    source_type="image",
+                    image_id=oci_image_id,
+                    boot_volume_size_in_gbs=boot_volume_size,
+                ),
+                metadata={"ssh_authorized_keys": ssh_public_key},
             )
-            if launch_instance_response.status == 200:
-                instance_exist_flag = check_instance_state_and_write(oci_tenancy, OCI_COMPUTE_SHAPE)
+
+            execute_oci_command(compute_client, "launch_instance",
+                                custom_error_handler=launch_error_handler,
+                                launch_instance_details=launch_instance_details)
+            instance_exist_flag = check_instance_state_and_write(oci_tenancy, OCI_COMPUTE_SHAPE)
 
         except oci.exceptions.ServiceError as srv_err:
             if srv_err.code == "LimitExceeded":
                 instance_exist_flag = check_instance_state_and_write(oci_tenancy, OCI_COMPUTE_SHAPE)
                 if instance_exist_flag:
                     sys.exit()
-            data = {
-                "status": srv_err.status,
-                "code": srv_err.code,
-                "message": srv_err.message,
-            }
-            send_discord_message(
-                f"❗️ Error encountered while launching instance: {data['code']}\n"
-                f"Status: {data['status']}, Message: {data['message']}"
-            )
-        except (oci.exceptions.ConnectTimeout, oci.exceptions.RequestException) as e:
-            send_discord_message(f"⏳ Connection issue while launching instance. Retrying... Details: {e}")
+            else:
+                raise
+
+
 
 
 
