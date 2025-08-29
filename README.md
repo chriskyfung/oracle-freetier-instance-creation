@@ -1,16 +1,25 @@
 # Oracle Free Tier Instance Creation (Docker & Podman)
 
-This project automates the creation of Oracle Cloud Free Tier compute instances using containerization. All configuration and credentials are managed via mounted files for security and portability.
+This project automates the creation of Oracle Cloud Free Tier compute instances using containerization. It is designed to run continuously, polling the OCI API until an instance is successfully provisioned.
+
+All configuration and credentials are managed via mounted files for security and portability.
+
+## Features
+
+- **Automated Instance Creation**: Automatically polls OCI until a free tier instance (ARM A1 or x86 Micro) is successfully provisioned.
+- **Resilient**: Designed to run for long periods. It is resilient to transient network errors and temporary OCI API issues, retrying automatically.
+- **Notifications**: Sends real-time status notifications to a Discord webhook (optional).
+- **Secure**: Manages all credentials and sensitive files through read-only volume mounts, ensuring they are not stored in the container image.
 
 ## Prerequisites
 
 - [Docker](https://www.docker.com/get-started) or [Podman](https://podman.io/) installed on your system.
-- Oracle Cloud account with required API credentials.
-- The following files in your project directory:
-  - `oci.env`: Environment variables for OCI
-  - `oci_config`: Oracle Cloud Infrastructure config file
-  - `oci_api_private_key.pem`: Private API key
-  - `ssh_public_key.pub`: SSH public key for instance access
+- An Oracle Cloud account with the required API credentials.
+- The following files created in your project directory:
+  - `oci.env`: Contains environment variables for the script. See `oci.env.example` for a full list of options, including compute shape, image ID, and the optional `DISCORD_WEBHOOK` URL.
+  - `oci_config`: Your Oracle Cloud Infrastructure config file.
+  - `oci_api_private_key.pem`: The private API key associated with your OCI user.
+  - `ssh_public_key.pub`: The SSH public key to be installed on the created instance.
 
 ## Usage with Docker
 
