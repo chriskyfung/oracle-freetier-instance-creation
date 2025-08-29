@@ -169,5 +169,4 @@ ssh_public_key.pub
 # Generated files
 output.txt
 test_issues.txt
-test_main.py
 instance_details_*.json
