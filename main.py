@@ -73,8 +73,7 @@ def write_into_file(file_path, data):
 
 
 def list_all_instances(compartment_id):
-    list_instances_response = compute_client.list_instances(compartment_id=compartment_id)
-    return list_instances_response.data
+    return execute_oci_command(compute_client, "list_instances", compartment_id=compartment_id)
 
 def check_instance_state_and_write(compartment_id, shape, states=('RUNNING', 'PROVISIONING'), tries=3):
     for _ in range(tries):
@@ -114,6 +113,13 @@ def execute_oci_command(client, method, *args, **kwargs):
                 f"❗️ Error encountered while executing OCI command: {method}\n"
                 f"Status: {data['status']}, Code: {data['code']}, Message: {data['message']}"
             )
+            if srv_err.status in [401, 403, 404]:
+                send_discord_message(f"❌ Halting script due to unrecoverable API error: {srv_err.code}")
+                sys.exit(1)
+            time.sleep(WAIT_TIME)
+        except (oci.exceptions.ConnectTimeout, oci.exceptions.RequestException) as e:
+            send_discord_message(f"⏳ Connection issue while executing {method}. Retrying... Details: {e}")
+            time.sleep(WAIT_TIME)
 
 
 def read_ssh_public_key(public_key_file: Union[str, Path]):
@@ -130,8 +136,7 @@ def read_ssh_public_key(public_key_file: Union[str, Path]):
 
 def launch_instance():
     # Step 1 - Get TENANCY
-    #user_info = execute_oci_command(iam_client, "get_user", OCI_USER_ID)
-    user_info = iam_client.get_user(OCI_USER_ID).data
+    user_info = execute_oci_command(iam_client, "get_user", OCI_USER_ID)
     oci_tenancy = user_info.compartment_id
 
     # Step 2 - Get AD Name
@@ -229,6 +234,8 @@ def launch_instance():
                 f"❗️ Error encountered while launching instance: {data['code']}\n"
                 f"Status: {data['status']}, Message: {data['message']}"
             )
+        except (oci.exceptions.ConnectTimeout, oci.exceptions.RequestException) as e:
+            send_discord_message(f"⏳ Connection issue while launching instance. Retrying... Details: {e}")
 
 
 
