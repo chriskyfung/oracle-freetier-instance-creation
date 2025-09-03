@@ -99,6 +99,11 @@ def check_instance_state_and_write(compartment_id, shape, states=('RUNNING', 'PR
     return False
 
 
+# TODO: Refactor execute_oci_command to allow for custom error handlers.
+# This would involve passing a callback function or a dictionary of error handlers
+# to the function, which would then be called in the except block.
+# This would avoid the need for the launch_instance function to have its own
+# exception handling logic.
 def execute_oci_command(client, method, *args, **kwargs):
     custom_error_handler = kwargs.pop('custom_error_handler', None)
     while True:
@@ -239,6 +244,9 @@ def launch_instance():
             instance_exist_flag = check_instance_state_and_write(oci_tenancy, OCI_COMPUTE_SHAPE)
 
         except oci.exceptions.ServiceError as srv_err:
+            # TODO: This exception handler for connection issues duplicates the logic
+            # recently added to the execute_oci_command function.
+            # This duplication can make the code harder to maintain.
             if srv_err.code == "LimitExceeded":
                 instance_exist_flag = check_instance_state_and_write(oci_tenancy, OCI_COMPUTE_SHAPE)
                 if instance_exist_flag:
